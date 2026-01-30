@@ -4,5 +4,7 @@
 //! and store it in the database. They run in background threads.
 
 mod collector;
+mod idle;
 
 pub use collector::{Collector, CollectorHandle};
+pub use idle::{is_idle, seconds_since_last_input, DEFAULT_IDLE_THRESHOLD_SECS};
