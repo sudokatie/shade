@@ -2,8 +2,12 @@
 //!
 //! Computes summaries, trends, and insights from collected data.
 
+mod daily;
+
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
+
+pub use daily::{compute_daily_summary, compute_today_summary};
 
 /// Daily summary of usage
 #[derive(Debug, Clone, Serialize, Deserialize)]
