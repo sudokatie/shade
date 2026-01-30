@@ -5,6 +5,8 @@
 
 mod collector;
 mod idle;
+mod screen_time_macos;
 
 pub use collector::{Collector, CollectorHandle};
 pub use idle::{is_idle, seconds_since_last_input, DEFAULT_IDLE_THRESHOLD_SECS};
+pub use screen_time_macos::{MacOSScreenTimeCollector, ScreenTimeConfig};
