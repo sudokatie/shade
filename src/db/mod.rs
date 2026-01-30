@@ -2,8 +2,8 @@
 //!
 //! SQLite-based storage for all tracking data.
 
-mod schema;
 mod queries;
+mod schema;
 
-pub use schema::{Application, Session};
 pub use queries::Database;
+pub use schema::{Application, Session};

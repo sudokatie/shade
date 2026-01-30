@@ -38,7 +38,7 @@ impl Tab {
             Tab::Categories => Tab::Today,
         }
     }
-    
+
     pub fn prev(&self) -> Self {
         match self {
             Tab::Today => Tab::Categories,
@@ -46,7 +46,7 @@ impl Tab {
             Tab::Categories => Tab::Apps,
         }
     }
-    
+
     pub fn title(&self) -> &'static str {
         match self {
             Tab::Today => "Today",
@@ -68,36 +68,36 @@ impl App {
             db_path: db_path.into(),
         }
     }
-    
+
     /// Load/refresh data from database
     pub fn refresh_data(&mut self) -> Result<()> {
         let db = Database::open(Path::new(&self.db_path))?;
         let today = Utc::now().date_naive();
         let categories = default_categories();
-        
+
         self.today_summary = Some(compute_daily_summary(&db, today, Some(&categories))?);
         self.error_message = None;
-        
+
         Ok(())
     }
-    
+
     /// Handle quit request
     pub fn quit(&mut self) {
         self.should_quit = true;
     }
-    
+
     /// Switch to next tab
     pub fn next_tab(&mut self) {
         self.current_tab = self.current_tab.next();
         self.selected_index = 0;
     }
-    
+
     /// Switch to previous tab
     pub fn prev_tab(&mut self) {
         self.current_tab = self.current_tab.prev();
         self.selected_index = 0;
     }
-    
+
     /// Move selection down
     pub fn select_next(&mut self) {
         let max = self.max_selection_index();
@@ -105,14 +105,14 @@ impl App {
             self.selected_index += 1;
         }
     }
-    
+
     /// Move selection up
     pub fn select_prev(&mut self) {
         if self.selected_index > 0 {
             self.selected_index -= 1;
         }
     }
-    
+
     /// Get max selection index based on current view
     fn max_selection_index(&self) -> usize {
         match &self.today_summary {
@@ -124,7 +124,7 @@ impl App {
             None => 0,
         }
     }
-    
+
     /// Get today's total screen time formatted
     pub fn total_time_str(&self) -> String {
         match &self.today_summary {
@@ -132,7 +132,7 @@ impl App {
             None => "0h 0m".to_string(),
         }
     }
-    
+
     /// Get progress through the day (0.0 - 1.0)
     /// Based on a target of 8 hours screen time
     pub fn day_progress(&self) -> f64 {
@@ -159,18 +159,18 @@ mod tests {
     #[test]
     fn test_tab_navigation() {
         let mut app = App::new(":memory:");
-        
+
         assert_eq!(app.current_tab, Tab::Today);
-        
+
         app.next_tab();
         assert_eq!(app.current_tab, Tab::Apps);
-        
+
         app.next_tab();
         assert_eq!(app.current_tab, Tab::Categories);
-        
+
         app.next_tab();
         assert_eq!(app.current_tab, Tab::Today);
-        
+
         app.prev_tab();
         assert_eq!(app.current_tab, Tab::Categories);
     }
@@ -186,12 +186,12 @@ mod tests {
     #[test]
     fn test_selection() {
         let mut app = App::new(":memory:");
-        
+
         assert_eq!(app.selected_index, 0);
-        
+
         app.select_prev();
         assert_eq!(app.selected_index, 0); // Can't go below 0
-        
+
         // Without data, max is 0
         app.select_next();
         assert_eq!(app.selected_index, 0);

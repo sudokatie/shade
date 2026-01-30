@@ -38,7 +38,7 @@ pub struct DateRange {
 }
 
 /// Export data for a date range
-/// 
+///
 /// # Arguments
 /// * `db` - Database connection
 /// * `start` - Start date (inclusive)
@@ -47,7 +47,7 @@ pub fn export_range(db: &Database, start: NaiveDate, end: NaiveDate) -> Result<E
     let categories = default_categories();
     let mut summaries = Vec::new();
     let mut total_secs = 0i64;
-    
+
     // Iterate through each day in range
     let mut current = start;
     while current <= end {
@@ -56,10 +56,10 @@ pub fn export_range(db: &Database, start: NaiveDate, end: NaiveDate) -> Result<E
         summaries.push(summary);
         current += Duration::days(1);
     }
-    
+
     // Get unique app count
     let apps = db.get_all_applications()?;
-    
+
     Ok(ExportData {
         export_date: Utc::now().to_rfc3339(),
         date_range: DateRange {
@@ -73,7 +73,7 @@ pub fn export_range(db: &Database, start: NaiveDate, end: NaiveDate) -> Result<E
 }
 
 /// Export data to a JSON file
-/// 
+///
 /// # Arguments
 /// * `db` - Database connection
 /// * `start` - Start date (inclusive)
@@ -87,10 +87,10 @@ pub fn export_to_file(
 ) -> Result<()> {
     let data = export_range(db, start, end)?;
     let json = serde_json::to_string_pretty(&data)?;
-    
+
     let mut file = File::create(output_path)?;
     file.write_all(json.as_bytes())?;
-    
+
     Ok(())
 }
 
@@ -109,9 +109,9 @@ mod tests {
     fn test_export_range_empty() {
         let (db, _file) = setup_test_db();
         let today = Utc::now().date_naive();
-        
+
         let export = export_range(&db, today, today).unwrap();
-        
+
         assert_eq!(export.summaries.len(), 1);
         assert_eq!(export.total_screen_time_secs, 0);
         assert_eq!(export.app_count, 0);
@@ -122,9 +122,9 @@ mod tests {
         let (db, _file) = setup_test_db();
         let today = Utc::now().date_naive();
         let week_ago = today - Duration::days(7);
-        
+
         let export = export_range(&db, week_ago, today).unwrap();
-        
+
         // Should have 8 days (week_ago to today inclusive)
         assert_eq!(export.summaries.len(), 8);
     }
@@ -134,13 +134,13 @@ mod tests {
         let (db, _db_file) = setup_test_db();
         let output_file = NamedTempFile::new().unwrap();
         let today = Utc::now().date_naive();
-        
+
         export_to_file(&db, today, today, output_file.path()).unwrap();
-        
+
         // Verify file was created and is valid JSON
         let content = std::fs::read_to_string(output_file.path()).unwrap();
         let parsed: ExportData = serde_json::from_str(&content).unwrap();
-        
+
         assert_eq!(parsed.summaries.len(), 1);
     }
 
@@ -156,11 +156,11 @@ mod tests {
             total_screen_time_secs: 3600,
             app_count: 5,
         };
-        
+
         let json = serde_json::to_string(&export).unwrap();
         assert!(json.contains("total_screen_time_secs"));
         assert!(json.contains("3600"));
-        
+
         // Verify round-trip
         let parsed: ExportData = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.total_screen_time_secs, 3600);

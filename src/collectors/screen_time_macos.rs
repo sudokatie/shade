@@ -2,7 +2,7 @@
 //!
 //! Tracks foreground application changes on macOS using polling.
 
-use super::{Collector, CollectorHandle, is_idle, DEFAULT_IDLE_THRESHOLD_SECS};
+use super::{is_idle, Collector, CollectorHandle, DEFAULT_IDLE_THRESHOLD_SECS};
 use crate::db::Database;
 use std::path::Path;
 use std::sync::atomic::Ordering;
@@ -12,12 +12,12 @@ use std::time::Duration;
 #[cfg(target_os = "macos")]
 mod ffi {
     /// Get the bundle ID of the frontmost application
-    /// 
+    ///
     /// Returns None if unable to determine.
     pub fn get_frontmost_app() -> Option<(String, String)> {
         // Use AppleScript as a reliable cross-version approach
         use std::process::Command;
-        
+
         let output = Command::new("osascript")
             .args([
                 "-e",
@@ -30,15 +30,15 @@ mod ffi {
             ])
             .output()
             .ok()?;
-        
+
         if !output.status.success() {
             return None;
         }
-        
+
         let result = String::from_utf8_lossy(&output.stdout);
         let result = result.trim();
         let parts: Vec<&str> = result.splitn(2, '|').collect();
-        
+
         if parts.len() == 2 {
             Some((parts[0].to_string(), parts[1].to_string()))
         } else {
@@ -89,7 +89,7 @@ struct SessionState {
 }
 
 /// macOS Screen Time Collector
-/// 
+///
 /// Tracks which application is in the foreground and logs sessions
 /// to the database.
 pub struct MacOSScreenTimeCollector {
@@ -107,7 +107,7 @@ impl MacOSScreenTimeCollector {
             db_path: db_path.into(),
         }
     }
-    
+
     /// Create with default config
     pub fn with_defaults(db_path: impl Into<String>) -> Self {
         Self::new(db_path, ScreenTimeConfig::default())
@@ -118,11 +118,11 @@ impl Collector for MacOSScreenTimeCollector {
     fn name(&self) -> &str {
         self.handle.name()
     }
-    
+
     fn start(&mut self) -> anyhow::Result<()> {
         let config = self.config.clone();
         let db_path = self.db_path.clone();
-        
+
         self.handle.start(move |running| {
             // Open database connection for this thread
             let db = match Database::open(Path::new(&db_path)) {
@@ -132,16 +132,16 @@ impl Collector for MacOSScreenTimeCollector {
                     return;
                 }
             };
-            
+
             let mut state: Option<SessionState> = None;
-            
+
             while running.load(Ordering::SeqCst) {
                 // Check for idle
                 let currently_idle = is_idle(config.idle_threshold_secs);
-                
+
                 // Get frontmost app
                 let current_app = ffi::get_frontmost_app();
-                
+
                 match (&mut state, current_app, currently_idle) {
                     // No previous state, got an app, not idle -> start session
                     (None, Some((name, bundle_id)), false) => {
@@ -156,14 +156,14 @@ impl Collector for MacOSScreenTimeCollector {
                             }
                         }
                     }
-                    
+
                     // Have state, app changed -> end old session, start new
                     (Some(s), Some((name, bundle_id)), false) if s.bundle_id != bundle_id => {
                         // End current session
                         if let Some(session_id) = s.session_id {
                             let _ = db.end_session(session_id, false);
                         }
-                        
+
                         // Start new session
                         if let Ok(app) = db.get_or_create_application(&bundle_id, &name) {
                             if let Ok(session_id) = db.start_session(app.id, None) {
@@ -174,7 +174,7 @@ impl Collector for MacOSScreenTimeCollector {
                             }
                         }
                     }
-                    
+
                     // Have state, became idle -> end session as idle
                     (Some(s), _, true) if !s.is_idle => {
                         if let Some(session_id) = s.session_id {
@@ -183,7 +183,7 @@ impl Collector for MacOSScreenTimeCollector {
                         }
                         s.is_idle = true;
                     }
-                    
+
                     // Was idle, no longer idle -> start new session
                     (Some(s), Some((name, bundle_id)), false) if s.is_idle => {
                         if let Ok(app) = db.get_or_create_application(&bundle_id, &name) {
@@ -195,14 +195,14 @@ impl Collector for MacOSScreenTimeCollector {
                             }
                         }
                     }
-                    
+
                     // No change, continue
                     _ => {}
                 }
-                
+
                 std::thread::sleep(Duration::from_millis(config.poll_interval_ms));
             }
-            
+
             // Cleanup: end any active session
             if let Some(s) = state {
                 if let Some(session_id) = s.session_id {
@@ -211,11 +211,11 @@ impl Collector for MacOSScreenTimeCollector {
             }
         })
     }
-    
+
     fn stop(&mut self) {
         self.handle.stop();
     }
-    
+
     fn is_running(&self) -> bool {
         self.handle.is_running()
     }

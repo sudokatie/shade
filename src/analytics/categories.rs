@@ -5,7 +5,7 @@ use std::collections::HashMap;
 /// Default categories for common applications
 pub fn default_categories() -> HashMap<String, String> {
     let mut map = HashMap::new();
-    
+
     // Browsers
     for bundle_id in [
         "com.apple.Safari",
@@ -18,7 +18,7 @@ pub fn default_categories() -> HashMap<String, String> {
     ] {
         map.insert(bundle_id.to_string(), "Browsers".to_string());
     }
-    
+
     // Development
     for bundle_id in [
         "com.microsoft.VSCode",
@@ -32,11 +32,11 @@ pub fn default_categories() -> HashMap<String, String> {
         "io.alacritty",
         "com.github.wez.wezterm",
         "dev.zed.Zed",
-        "com.todesktop.230313mzl4w4u92",  // Cursor
+        "com.todesktop.230313mzl4w4u92", // Cursor
     ] {
         map.insert(bundle_id.to_string(), "Development".to_string());
     }
-    
+
     // Communication
     for bundle_id in [
         "com.apple.MobileSMS",
@@ -51,7 +51,7 @@ pub fn default_categories() -> HashMap<String, String> {
     ] {
         map.insert(bundle_id.to_string(), "Communication".to_string());
     }
-    
+
     // Productivity
     for bundle_id in [
         "com.apple.Notes",
@@ -69,7 +69,7 @@ pub fn default_categories() -> HashMap<String, String> {
     ] {
         map.insert(bundle_id.to_string(), "Productivity".to_string());
     }
-    
+
     // Entertainment
     for bundle_id in [
         "com.spotify.client",
@@ -82,7 +82,7 @@ pub fn default_categories() -> HashMap<String, String> {
     ] {
         map.insert(bundle_id.to_string(), "Entertainment".to_string());
     }
-    
+
     // Social
     for bundle_id in [
         "com.twitter.twitter-mac",
@@ -92,7 +92,7 @@ pub fn default_categories() -> HashMap<String, String> {
     ] {
         map.insert(bundle_id.to_string(), "Social".to_string());
     }
-    
+
     // Design
     for bundle_id in [
         "com.figma.Desktop",
@@ -103,7 +103,7 @@ pub fn default_categories() -> HashMap<String, String> {
     ] {
         map.insert(bundle_id.to_string(), "Design".to_string());
     }
-    
+
     // System
     for bundle_id in [
         "com.apple.finder",
@@ -113,12 +113,12 @@ pub fn default_categories() -> HashMap<String, String> {
     ] {
         map.insert(bundle_id.to_string(), "System".to_string());
     }
-    
+
     map
 }
 
 /// Merge user-defined categories with defaults
-/// 
+///
 /// User categories take precedence over defaults.
 pub fn merge_categories(
     user_categories: &HashMap<String, String>,
@@ -134,12 +134,9 @@ pub fn merge_categories(
 }
 
 /// Get the category for a bundle ID
-/// 
+///
 /// Returns "Uncategorized" if not found.
-pub fn get_category_for_bundle_id(
-    bundle_id: &str,
-    categories: &HashMap<String, String>,
-) -> String {
+pub fn get_category_for_bundle_id(bundle_id: &str, categories: &HashMap<String, String>) -> String {
     categories
         .get(bundle_id)
         .cloned()
@@ -147,7 +144,7 @@ pub fn get_category_for_bundle_id(
 }
 
 /// Categorize a list of applications
-/// 
+///
 /// Returns a map of bundle_id -> category for the given apps.
 pub fn categorize_apps(
     bundle_ids: &[String],
@@ -173,14 +170,23 @@ mod tests {
     #[test]
     fn test_default_categories_contains_development() {
         let cats = default_categories();
-        assert_eq!(cats.get("com.microsoft.VSCode"), Some(&"Development".to_string()));
-        assert_eq!(cats.get("com.apple.dt.Xcode"), Some(&"Development".to_string()));
+        assert_eq!(
+            cats.get("com.microsoft.VSCode"),
+            Some(&"Development".to_string())
+        );
+        assert_eq!(
+            cats.get("com.apple.dt.Xcode"),
+            Some(&"Development".to_string())
+        );
     }
 
     #[test]
     fn test_get_category_for_bundle_id_found() {
         let cats = default_categories();
-        assert_eq!(get_category_for_bundle_id("com.apple.Safari", &cats), "Browsers");
+        assert_eq!(
+            get_category_for_bundle_id("com.apple.Safari", &cats),
+            "Browsers"
+        );
     }
 
     #[test]
@@ -200,12 +206,21 @@ mod tests {
             "com.microsoft.VSCode".to_string(),
             "com.unknown.app".to_string(),
         ];
-        
+
         let result = categorize_apps(&apps, &cats);
-        
-        assert_eq!(result.get("com.apple.Safari"), Some(&"Browsers".to_string()));
-        assert_eq!(result.get("com.microsoft.VSCode"), Some(&"Development".to_string()));
-        assert_eq!(result.get("com.unknown.app"), Some(&"Uncategorized".to_string()));
+
+        assert_eq!(
+            result.get("com.apple.Safari"),
+            Some(&"Browsers".to_string())
+        );
+        assert_eq!(
+            result.get("com.microsoft.VSCode"),
+            Some(&"Development".to_string())
+        );
+        assert_eq!(
+            result.get("com.unknown.app"),
+            Some(&"Uncategorized".to_string())
+        );
     }
 
     #[test]
@@ -213,24 +228,27 @@ mod tests {
         let mut user = HashMap::new();
         user.insert("com.custom.app".to_string(), "Custom".to_string());
         user.insert("com.apple.Safari".to_string(), "Web".to_string()); // Override default
-        
+
         let merged = merge_categories(&user, true);
-        
+
         // User custom category
         assert_eq!(merged.get("com.custom.app"), Some(&"Custom".to_string()));
         // User override of default
         assert_eq!(merged.get("com.apple.Safari"), Some(&"Web".to_string()));
         // Default preserved
-        assert_eq!(merged.get("com.google.Chrome"), Some(&"Browsers".to_string()));
+        assert_eq!(
+            merged.get("com.google.Chrome"),
+            Some(&"Browsers".to_string())
+        );
     }
 
     #[test]
     fn test_merge_categories_without_defaults() {
         let mut user = HashMap::new();
         user.insert("com.custom.app".to_string(), "Custom".to_string());
-        
+
         let merged = merge_categories(&user, false);
-        
+
         assert_eq!(merged.len(), 1);
         assert_eq!(merged.get("com.custom.app"), Some(&"Custom".to_string()));
         assert!(merged.get("com.apple.Safari").is_none());

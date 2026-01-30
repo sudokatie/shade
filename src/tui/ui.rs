@@ -19,7 +19,7 @@ pub fn render(frame: &mut Frame, app: &App) {
             Constraint::Length(3), // Help bar
         ])
         .split(frame.area());
-    
+
     render_tabs(frame, app, chunks[0]);
     render_content(frame, app, chunks[1]);
     render_help(frame, chunks[2]);
@@ -32,19 +32,23 @@ fn render_tabs(frame: &mut Frame, app: &App, area: Rect) {
         Tab::Apps.title().into(),
         Tab::Categories.title().into(),
     ];
-    
+
     let selected = match app.current_tab {
         Tab::Today => 0,
         Tab::Apps => 1,
         Tab::Categories => 2,
     };
-    
+
     let tabs = Tabs::new(titles)
         .block(Block::default().borders(Borders::ALL).title("Shade"))
         .select(selected)
         .style(Style::default().fg(Color::White))
-        .highlight_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
-    
+        .highlight_style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        );
+
     frame.render_widget(tabs, area);
 }
 
@@ -66,39 +70,40 @@ fn render_today(frame: &mut Frame, app: &App, area: Rect) {
             Constraint::Min(0),    // Quick stats
         ])
         .split(area);
-    
+
     // Total time and progress bar
     let total_block = Block::default()
         .borders(Borders::ALL)
         .title("Screen Time Today");
-    
+
     let inner = total_block.inner(chunks[0]);
     frame.render_widget(total_block, chunks[0]);
-    
+
     let progress_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(1), Constraint::Length(1)])
         .margin(1)
         .split(inner);
-    
-    let time_text = Paragraph::new(format!("Total: {}", app.total_time_str()))
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+
+    let time_text = Paragraph::new(format!("Total: {}", app.total_time_str())).style(
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    );
     frame.render_widget(time_text, progress_chunks[0]);
-    
+
     let gauge = Gauge::default()
         .gauge_style(Style::default().fg(Color::Green))
         .ratio(app.day_progress())
         .label(format!("{:.0}% of 8h target", app.day_progress() * 100.0));
     frame.render_widget(gauge, progress_chunks[1]);
-    
+
     // Quick stats
-    let stats_block = Block::default()
-        .borders(Borders::ALL)
-        .title("Summary");
-    
+    let stats_block = Block::default().borders(Borders::ALL).title("Summary");
+
     let stats_inner = stats_block.inner(chunks[1]);
     frame.render_widget(stats_block, chunks[1]);
-    
+
     let stats = match &app.today_summary {
         Some(summary) => {
             let mut lines = vec![
@@ -118,7 +123,7 @@ fn render_today(frame: &mut Frame, app: &App, area: Rect) {
                     ),
                 ]),
             ];
-            
+
             if let Some(top) = summary.top_apps.first() {
                 lines.push(Line::from(""));
                 lines.push(Line::from(vec![
@@ -126,7 +131,7 @@ fn render_today(frame: &mut Frame, app: &App, area: Rect) {
                     Span::styled(&top.name, Style::default().fg(Color::Cyan)),
                 ]));
             }
-            
+
             lines
         }
         None => vec![
@@ -134,7 +139,7 @@ fn render_today(frame: &mut Frame, app: &App, area: Rect) {
             Line::from("  No data yet. Start tracking to see stats."),
         ],
     };
-    
+
     let stats_para = Paragraph::new(stats);
     frame.render_widget(stats_para, stats_inner);
 }
@@ -150,23 +155,29 @@ fn render_apps(frame: &mut Frame, app: &App, area: Rect) {
                 let hours = a.seconds / 3600;
                 let minutes = (a.seconds % 3600) / 60;
                 let content = format!("{:>2}. {:30} {:>2}h {:>2}m", i + 1, a.name, hours, minutes);
-                
+
                 let style = if i == app.selected_index {
-                    Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD)
                 } else {
                     Style::default()
                 };
-                
+
                 ListItem::new(content).style(style)
             })
             .collect(),
         None => vec![ListItem::new("No data")],
     };
-    
+
     let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title("Top Apps Today"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Top Apps Today"),
+        )
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
-    
+
     frame.render_widget(list, area);
 }
 
@@ -181,23 +192,29 @@ fn render_categories(frame: &mut Frame, app: &App, area: Rect) {
                 let hours = c.seconds / 3600;
                 let minutes = (c.seconds % 3600) / 60;
                 let content = format!("{:20} {:>2}h {:>2}m", c.category, hours, minutes);
-                
+
                 let style = if i == app.selected_index {
-                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
                 } else {
                     Style::default()
                 };
-                
+
                 ListItem::new(content).style(style)
             })
             .collect(),
         None => vec![ListItem::new("No data")],
     };
-    
+
     let list = List::new(items)
-        .block(Block::default().borders(Borders::ALL).title("Time by Category"))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Time by Category"),
+        )
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
-    
+
     frame.render_widget(list, area);
 }
 
