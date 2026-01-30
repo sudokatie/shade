@@ -1,7 +1,10 @@
 //! Shade CLI - Privacy-first personal analytics
 
+use chrono::{Duration, Utc};
 use clap::{Parser, Subcommand};
+use shade::analytics::{compute_daily_summary, default_categories};
 use shade::config::ShadeConfig;
+use shade::db::Database;
 
 #[derive(Parser)]
 #[command(name = "shade")]
@@ -36,6 +39,9 @@ enum Commands {
         #[arg(short, long, default_value = "today")]
         period: String,
     },
+    
+    /// List all tracked applications
+    List,
     
     /// Open the TUI dashboard
     Dashboard,
@@ -77,21 +83,110 @@ fn main() -> anyhow::Result<()> {
         }
         
         Commands::Status => {
-            println!("Shade daemon status:");
-            println!("  Running: false");
-            println!("  Database: {:?}", ShadeConfig::default().db_path);
-            println!("(Status check not yet implemented)");
+            let config = ShadeConfig::load()?;
+            println!("Shade Status");
+            println!("  Database: {:?}", config.db_path);
+            
+            if config.db_path.exists() {
+                let db = Database::open(&config.db_path)?;
+                let today = Utc::now().date_naive();
+                let total = db.get_daily_screen_time(today)?;
+                let hours = total / 3600;
+                let minutes = (total % 3600) / 60;
+                println!("  Today's screen time: {}h {}m", hours, minutes);
+            } else {
+                println!("  Database not found (run 'shade init' first)");
+            }
         }
         
         Commands::Today => {
-            println!("Today's Screen Time:");
-            println!("  Total: 0h 0m");
-            println!("  (Data collection not yet implemented)");
+            let config = ShadeConfig::load()?;
+            
+            if !config.db_path.exists() {
+                println!("No data yet. Run 'shade start' to begin tracking.");
+                return Ok(());
+            }
+            
+            let db = Database::open(&config.db_path)?;
+            let today = Utc::now().date_naive();
+            let categories = default_categories();
+            let summary = compute_daily_summary(&db, today, Some(&categories))?;
+            
+            println!("Today's Screen Time: {}", summary.format_total_time());
+            println!();
+            
+            if !summary.category_breakdown.is_empty() {
+                println!("By Category:");
+                for cat in &summary.category_breakdown {
+                    let hours = cat.seconds / 3600;
+                    let minutes = (cat.seconds % 3600) / 60;
+                    println!("  {:20} {:>2}h {:>2}m", cat.category, hours, minutes);
+                }
+                println!();
+            }
+            
+            if !summary.top_apps.is_empty() {
+                println!("Top Apps:");
+                for (i, app) in summary.top_apps.iter().take(5).enumerate() {
+                    let hours = app.seconds / 3600;
+                    let minutes = (app.seconds % 3600) / 60;
+                    println!("  {}. {:20} {:>2}h {:>2}m", i + 1, app.name, hours, minutes);
+                }
+            }
         }
         
         Commands::Apps { limit, period } => {
-            println!("Top {} apps ({})", limit, period);
-            println!("  (No data yet)");
+            let config = ShadeConfig::load()?;
+            
+            if !config.db_path.exists() {
+                println!("No data yet. Run 'shade start' to begin tracking.");
+                return Ok(());
+            }
+            
+            let db = Database::open(&config.db_path)?;
+            let today = Utc::now().date_naive();
+            
+            let (start, end) = match period.as_str() {
+                "week" => (today - Duration::days(7), today),
+                "month" => (today - Duration::days(30), today),
+                _ => (today, today), // "today" or default
+            };
+            
+            let apps = db.get_top_apps(start, end, limit)?;
+            
+            println!("Top {} Apps ({})", limit, period);
+            println!();
+            
+            if apps.is_empty() {
+                println!("  No data for this period.");
+            } else {
+                for (i, (app, secs)) in apps.iter().enumerate() {
+                    let hours = secs / 3600;
+                    let minutes = (secs % 3600) / 60;
+                    println!("  {:>2}. {:30} {:>2}h {:>2}m", i + 1, app.name, hours, minutes);
+                }
+            }
+        }
+        
+        Commands::List => {
+            let config = ShadeConfig::load()?;
+            
+            if !config.db_path.exists() {
+                println!("No data yet. Run 'shade start' to begin tracking.");
+                return Ok(());
+            }
+            
+            let db = Database::open(&config.db_path)?;
+            let apps = db.get_all_applications()?;
+            
+            println!("Tracked Applications ({} total)", apps.len());
+            println!();
+            
+            for app in &apps {
+                let category = app.category.as_deref().unwrap_or("Uncategorized");
+                println!("  {:30} [{}]", app.name, category);
+                println!("    {}", app.bundle_id);
+            }
         }
         
         Commands::Dashboard => {
@@ -112,9 +207,23 @@ fn main() -> anyhow::Result<()> {
         
         Commands::Init => {
             let config = ShadeConfig::default();
+            
+            // Create config directory and database directory
+            if let Some(parent) = config.db_path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            
+            // Initialize database
+            let db = Database::open(&config.db_path)?;
+            drop(db); // Close connection
+            
             config.save()?;
-            println!("Created config at ~/.shade/config.yaml");
-            println!("Database will be at: {:?}", config.db_path);
+            
+            println!("Shade initialized!");
+            println!("  Config: ~/.shade/config.yaml");
+            println!("  Database: {:?}", config.db_path);
+            println!();
+            println!("Run 'shade start' to begin tracking.");
         }
     }
     
