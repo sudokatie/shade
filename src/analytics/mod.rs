@@ -2,11 +2,15 @@
 //!
 //! Computes summaries, trends, and insights from collected data.
 
+mod categories;
 mod daily;
 
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
+pub use categories::{
+    categorize_apps, default_categories, get_category_for_bundle_id, merge_categories,
+};
 pub use daily::{compute_daily_summary, compute_today_summary};
 
 /// Daily summary of usage
