@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Privacy-first personal analytics. All data local."
 license = "MIT"
-repository = "https://github.com/katieblackabee/shade"
+repository = "https://github.com/sudokatie/shade"
 keywords = ["privacy", "analytics", "screen-time", "tracking"]
 categories = ["command-line-utilities"]
 
