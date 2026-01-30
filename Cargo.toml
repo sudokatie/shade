@@ -1,0 +1,45 @@
+[package]
+name = "shade"
+version = "0.1.0"
+edition = "2021"
+description = "Privacy-first personal analytics. All data local."
+license = "MIT"
+repository = "https://github.com/katieblackabee/shade"
+keywords = ["privacy", "analytics", "screen-time", "tracking"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+# Database
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# Async
+tokio = { version = "1", features = ["full"] }
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# TUI
+ratatui = "0.29"
+crossterm = "0.28"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Directories
+dirs = "5"
+
+# Error handling
+anyhow = "1"
+thiserror = "2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# macOS-specific for app tracking
+core-graphics = "0.24"
+
+[dev-dependencies]
+tempfile = "3"

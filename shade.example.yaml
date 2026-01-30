@@ -1,0 +1,45 @@
+# Shade Configuration Example
+# Copy to ~/.shade/config.yaml
+
+# Database location
+db_path: ~/.shade/shade.db
+
+# Idle timeout in seconds (stop tracking after this much inactivity)
+idle_timeout_secs: 300  # 5 minutes
+
+# How often to check for active application
+collection_interval_secs: 1
+
+# Whether to track window titles (more info, but more privacy-sensitive)
+track_window_titles: false
+
+# Application categories for grouping
+categories:
+  - name: Work
+    patterns:
+      - com.apple.Terminal
+      - com.microsoft.VSCode
+      - com.sublimehq.Sublime-Text
+      - com.jetbrains.*
+      - org.vim.*
+      
+  - name: Communication
+    patterns:
+      - com.apple.MobileSMS
+      - com.tinyspeck.slackmacgap
+      - com.hnc.Discord
+      - us.zoom.xos
+      
+  - name: Browsing
+    patterns:
+      - com.apple.Safari
+      - com.google.Chrome
+      - org.mozilla.firefox
+      - com.brave.Browser
+      
+  - name: Entertainment
+    patterns:
+      - com.spotify.client
+      - com.apple.Music
+      - com.netflix.*
+      - tv.twitch.*
