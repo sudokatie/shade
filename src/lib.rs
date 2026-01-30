@@ -6,6 +6,7 @@ pub mod analytics;
 pub mod cli;
 pub mod collectors;
 pub mod db;
+pub mod export;
 pub mod tui;
 
 /// Application configuration

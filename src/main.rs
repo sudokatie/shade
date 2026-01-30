@@ -201,14 +201,34 @@ fn main() -> anyhow::Result<()> {
         }
         
         Commands::Export { output, from, to } => {
-            println!("Exporting data to {:?}", output);
-            if let Some(f) = from {
-                println!("  From: {}", f);
+            let config = ShadeConfig::load()?;
+            
+            if !config.db_path.exists() {
+                println!("No data yet. Run 'shade init' first.");
+                return Ok(());
             }
-            if let Some(t) = to {
-                println!("  To: {}", t);
-            }
-            println!("(Export not yet implemented)");
+            
+            let db = Database::open(&config.db_path)?;
+            let today = Utc::now().date_naive();
+            
+            // Parse dates or use defaults
+            let start = match from {
+                Some(s) => s.parse::<chrono::NaiveDate>()
+                    .map_err(|_| anyhow::anyhow!("Invalid date format. Use YYYY-MM-DD"))?,
+                None => today - Duration::days(30), // Default to last 30 days
+            };
+            
+            let end = match to {
+                Some(s) => s.parse::<chrono::NaiveDate>()
+                    .map_err(|_| anyhow::anyhow!("Invalid date format. Use YYYY-MM-DD"))?,
+                None => today,
+            };
+            
+            println!("Exporting data from {} to {}...", start, end);
+            
+            shade::export::export_to_file(&db, start, end, &output)?;
+            
+            println!("Exported to {:?}", output);
         }
         
         Commands::Init => {
