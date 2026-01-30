@@ -190,8 +190,14 @@ fn main() -> anyhow::Result<()> {
         }
         
         Commands::Dashboard => {
-            println!("Opening dashboard...");
-            println!("(TUI not yet implemented)");
+            let config = ShadeConfig::load()?;
+            
+            if !config.db_path.exists() {
+                println!("No data yet. Run 'shade init' first, then 'shade start' to begin tracking.");
+                return Ok(());
+            }
+            
+            shade::tui::run(config.db_path.to_str().unwrap_or(":memory:"))?;
         }
         
         Commands::Export { output, from, to } => {

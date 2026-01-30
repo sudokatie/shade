@@ -2,5 +2,9 @@
 //!
 //! Interactive terminal interface for viewing analytics.
 
-// TUI implementation will go here
-// Using ratatui for the interface
+mod app;
+mod run;
+mod ui;
+
+pub use app::{App, Tab};
+pub use run::run;
