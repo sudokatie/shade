@@ -113,8 +113,16 @@ Your data. Your machine. Period.
 ## Platform Support
 
 - **macOS** - Full support (uses NSWorkspace for app tracking)
-- **Linux** - Planned (X11/Wayland support coming)
-- **Windows** - Planned (Win32 API support coming)
+- **Linux** - In development
+- **Windows** - In development
+
+## Roadmap
+
+### v0.2 (Planned)
+- [ ] Linux support (X11 via x11rb, Wayland experimental)
+- [ ] Windows support (Win32 GetForegroundWindow)
+
+See FEATURE-BACKLOG.md in the clawd repo for detailed acceptance criteria.
 
 ## License
 
