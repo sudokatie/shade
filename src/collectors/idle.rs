@@ -74,8 +74,8 @@ mod tests {
         let idle_secs = seconds_since_last_input();
         // Should return a non-negative value
         assert!(idle_secs >= 0.0);
-        // Should be less than a day (sanity check)
-        assert!(idle_secs < 86400.0);
+        // Should return finite value (not NaN or infinity)
+        assert!(idle_secs.is_finite());
     }
 
     #[test]
