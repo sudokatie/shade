@@ -45,5 +45,16 @@ core-graphics = "0.24"
 # Linux X11 support for window tracking
 x11rb = { version = "0.13", features = ["screensaver"] }
 
+[target.'cfg(target_os = "windows")'.dependencies]
+# Windows support for window tracking
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Threading",
+    "Win32_System_SystemInformation",
+] }
+
 [dev-dependencies]
 tempfile = "3"

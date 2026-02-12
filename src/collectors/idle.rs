@@ -71,8 +71,29 @@ pub fn seconds_since_last_input() -> f64 {
     result.unwrap_or(0.0)
 }
 
-/// Get seconds since last user input (non-macOS/non-Linux stub)
-#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+/// Get seconds since last user input on Windows via GetLastInputInfo
+#[cfg(target_os = "windows")]
+pub fn seconds_since_last_input() -> f64 {
+    use windows::Win32::UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO};
+
+    unsafe {
+        let mut last_input = LASTINPUTINFO {
+            cbSize: std::mem::size_of::<LASTINPUTINFO>() as u32,
+            dwTime: 0,
+        };
+
+        if GetLastInputInfo(&mut last_input).as_bool() {
+            let current_tick = windows::Win32::System::SystemInformation::GetTickCount();
+            let idle_ms = current_tick.wrapping_sub(last_input.dwTime);
+            idle_ms as f64 / 1000.0
+        } else {
+            0.0
+        }
+    }
+}
+
+/// Get seconds since last user input (unsupported platform stub)
+#[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
 pub fn seconds_since_last_input() -> f64 {
     // Return 0 on unsupported platforms (always "active")
     0.0

@@ -114,7 +114,7 @@ Your data. Your machine. Period.
 
 - **macOS** - Full support (uses NSWorkspace/AppleScript for app tracking)
 - **Linux** - X11 support (uses x11rb for active window, screensaver extension for idle)
-- **Windows** - In development
+- **Windows** - Full support (uses Win32 GetForegroundWindow, GetLastInputInfo for idle)
 
 ### Linux Notes
 
@@ -124,11 +124,15 @@ To use on Linux:
 1. Ensure you're running an X11 session (or XWayland)
 2. The screensaver extension must be available for idle detection
 
+### Windows Notes
+
+Windows support uses the Win32 API to track the foreground window and detect idle time.
+
 ## Roadmap
 
 ### v0.2 (Planned)
 - [x] Linux support (X11 via x11rb)
-- [ ] Windows support (Win32 GetForegroundWindow)
+- [x] Windows support (Win32 GetForegroundWindow)
 - [ ] Wayland support (compositor-specific, experimental)
 
 See FEATURE-BACKLOG.md in the clawd repo for detailed acceptance criteria.
