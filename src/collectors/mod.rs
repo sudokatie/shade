@@ -5,8 +5,18 @@
 
 mod collector;
 mod idle;
+
+#[cfg(target_os = "macos")]
 mod screen_time_macos;
+
+#[cfg(target_os = "linux")]
+mod screen_time_linux;
 
 pub use collector::{Collector, CollectorHandle};
 pub use idle::{is_idle, seconds_since_last_input, DEFAULT_IDLE_THRESHOLD_SECS};
+
+#[cfg(target_os = "macos")]
 pub use screen_time_macos::{MacOSScreenTimeCollector, ScreenTimeConfig};
+
+#[cfg(target_os = "linux")]
+pub use screen_time_linux::{LinuxScreenTimeCollector, ScreenTimeConfig};

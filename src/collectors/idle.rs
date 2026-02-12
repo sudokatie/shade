@@ -50,8 +50,29 @@ pub fn seconds_since_last_input() -> f64 {
     }
 }
 
-/// Get seconds since last user input (non-macOS stub)
-#[cfg(not(target_os = "macos"))]
+/// Get seconds since last user input on Linux via X11 screensaver extension
+#[cfg(target_os = "linux")]
+pub fn seconds_since_last_input() -> f64 {
+    use x11rb::connection::Connection;
+    use x11rb::protocol::screensaver::ConnectionExt as ScreensaverConnectionExt;
+    use x11rb::rust_connection::RustConnection;
+
+    let result = (|| -> Option<f64> {
+        let (conn, screen_num) = RustConnection::connect(None).ok()?;
+        let screen = &conn.setup().roots[screen_num];
+        let root = screen.root;
+
+        let reply = conn.screensaver_query_info(root).ok()?.reply().ok()?;
+
+        // ms_since_user_input is in milliseconds
+        Some(reply.ms_since_user_input as f64 / 1000.0)
+    })();
+
+    result.unwrap_or(0.0)
+}
+
+/// Get seconds since last user input (non-macOS/non-Linux stub)
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
 pub fn seconds_since_last_input() -> f64 {
     // Return 0 on unsupported platforms (always "active")
     0.0

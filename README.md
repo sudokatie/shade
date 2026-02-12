@@ -112,15 +112,24 @@ Your data. Your machine. Period.
 
 ## Platform Support
 
-- **macOS** - Full support (uses NSWorkspace for app tracking)
-- **Linux** - In development
+- **macOS** - Full support (uses NSWorkspace/AppleScript for app tracking)
+- **Linux** - X11 support (uses x11rb for active window, screensaver extension for idle)
 - **Windows** - In development
+
+### Linux Notes
+
+Linux support requires X11. Wayland is not currently supported due to the lack of a standard protocol for getting the active window (each compositor has its own approach).
+
+To use on Linux:
+1. Ensure you're running an X11 session (or XWayland)
+2. The screensaver extension must be available for idle detection
 
 ## Roadmap
 
 ### v0.2 (Planned)
-- [ ] Linux support (X11 via x11rb, Wayland experimental)
+- [x] Linux support (X11 via x11rb)
 - [ ] Windows support (Win32 GetForegroundWindow)
+- [ ] Wayland support (compositor-specific, experimental)
 
 See FEATURE-BACKLOG.md in the clawd repo for detailed acceptance criteria.
 
