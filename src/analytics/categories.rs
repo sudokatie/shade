@@ -251,6 +251,6 @@ mod tests {
 
         assert_eq!(merged.len(), 1);
         assert_eq!(merged.get("com.custom.app"), Some(&"Custom".to_string()));
-        assert!(merged.get("com.apple.Safari").is_none());
+        assert!(!merged.contains_key("com.apple.Safari"));
     }
 }
