@@ -64,6 +64,10 @@ brew install sudokatie/tap/shade
 | `shade list` | All tracked applications |
 | `shade dashboard` | Interactive TUI dashboard |
 | `shade export` | Export data to JSON |
+| `shade category list` | List all categories |
+| `shade category add <bundle_id> <category>` | Add app to a category |
+| `shade category remove <bundle_id> <category>` | Remove app from category |
+| `shade category show <category>` | Show apps in a category |
 
 ## Configuration
 
@@ -81,7 +85,39 @@ collection_interval_secs: 1
 
 # Track window titles (privacy-sensitive)
 track_window_titles: false
+
+# Custom categories (merged with built-in defaults)
+categories:
+  - name: Work
+    patterns:
+      - com.mycompany.app
+      - com.custom.tool
+  - name: Gaming
+    patterns:
+      - com.steam.app
 ```
+
+## Categories
+
+Shade comes with built-in categories for common apps (Browsers, Development, Communication, etc.). You can also define your own categories that override or extend the defaults.
+
+### Managing Categories
+
+```bash
+# List all categories and app counts
+shade category list
+
+# Add an app to a category
+shade category add com.example.app "My Category"
+
+# Remove an app from a category
+shade category remove com.example.app "My Category"
+
+# Show all apps in a category
+shade category show Development
+```
+
+User-defined categories in config.yaml take precedence over built-in defaults, so you can recategorize any app to fit your workflow.
 
 ## Data Storage
 

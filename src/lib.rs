@@ -83,6 +83,53 @@ pub mod config {
         pub patterns: Vec<String>,
     }
 
+    impl ShadeConfig {
+        /// Get user-defined categories as a HashMap
+        pub fn category_map(&self) -> std::collections::HashMap<String, String> {
+            let mut map = std::collections::HashMap::new();
+            for cat in &self.categories {
+                for pattern in &cat.patterns {
+                    map.insert(pattern.clone(), cat.name.clone());
+                }
+            }
+            map
+        }
+
+        /// Add an app to a category
+        pub fn add_to_category(&mut self, bundle_id: &str, category: &str) {
+            // Find existing category or create new one
+            if let Some(cat) = self.categories.iter_mut().find(|c| c.name == category) {
+                if !cat.patterns.contains(&bundle_id.to_string()) {
+                    cat.patterns.push(bundle_id.to_string());
+                }
+            } else {
+                self.categories.push(CategoryConfig {
+                    name: category.to_string(),
+                    patterns: vec![bundle_id.to_string()],
+                });
+            }
+        }
+
+        /// Remove an app from a category
+        pub fn remove_from_category(&mut self, bundle_id: &str, category: &str) -> bool {
+            if let Some(cat) = self.categories.iter_mut().find(|c| c.name == category) {
+                let original_len = cat.patterns.len();
+                cat.patterns.retain(|p| p != bundle_id);
+                cat.patterns.len() < original_len
+            } else {
+                false
+            }
+        }
+
+        /// List all user-defined categories
+        pub fn list_categories(&self) -> Vec<(&str, usize)> {
+            self.categories
+                .iter()
+                .map(|c| (c.name.as_str(), c.patterns.len()))
+                .collect()
+        }
+    }
+
     fn default_db_path() -> PathBuf {
         dirs::home_dir()
             .unwrap_or_else(|| PathBuf::from("."))
@@ -103,5 +150,90 @@ pub mod config {
             .unwrap_or_else(|| PathBuf::from("."))
             .join(".shade")
             .join("config.yaml")
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn test_category_map_empty() {
+            let config = ShadeConfig::default();
+            assert!(config.category_map().is_empty());
+        }
+
+        #[test]
+        fn test_category_map_with_categories() {
+            let mut config = ShadeConfig::default();
+            config.categories.push(CategoryConfig {
+                name: "Work".to_string(),
+                patterns: vec!["com.slack.Slack".to_string(), "com.microsoft.teams".to_string()],
+            });
+
+            let map = config.category_map();
+            assert_eq!(map.get("com.slack.Slack"), Some(&"Work".to_string()));
+            assert_eq!(map.get("com.microsoft.teams"), Some(&"Work".to_string()));
+        }
+
+        #[test]
+        fn test_add_to_category_new() {
+            let mut config = ShadeConfig::default();
+            config.add_to_category("com.example.app", "Custom");
+
+            assert_eq!(config.categories.len(), 1);
+            assert_eq!(config.categories[0].name, "Custom");
+            assert!(config.categories[0].patterns.contains(&"com.example.app".to_string()));
+        }
+
+        #[test]
+        fn test_add_to_category_existing() {
+            let mut config = ShadeConfig::default();
+            config.add_to_category("com.example.app1", "Custom");
+            config.add_to_category("com.example.app2", "Custom");
+
+            assert_eq!(config.categories.len(), 1);
+            assert_eq!(config.categories[0].patterns.len(), 2);
+        }
+
+        #[test]
+        fn test_add_to_category_no_duplicate() {
+            let mut config = ShadeConfig::default();
+            config.add_to_category("com.example.app", "Custom");
+            config.add_to_category("com.example.app", "Custom");
+
+            assert_eq!(config.categories[0].patterns.len(), 1);
+        }
+
+        #[test]
+        fn test_remove_from_category() {
+            let mut config = ShadeConfig::default();
+            config.add_to_category("com.example.app", "Custom");
+            
+            let removed = config.remove_from_category("com.example.app", "Custom");
+            assert!(removed);
+            assert!(config.categories[0].patterns.is_empty());
+        }
+
+        #[test]
+        fn test_remove_from_category_not_found() {
+            let mut config = ShadeConfig::default();
+            config.add_to_category("com.example.app", "Custom");
+            
+            let removed = config.remove_from_category("com.other.app", "Custom");
+            assert!(!removed);
+        }
+
+        #[test]
+        fn test_list_categories() {
+            let mut config = ShadeConfig::default();
+            config.add_to_category("com.app1", "Work");
+            config.add_to_category("com.app2", "Work");
+            config.add_to_category("com.app3", "Fun");
+
+            let list = config.list_categories();
+            assert_eq!(list.len(), 2);
+            assert!(list.iter().any(|(name, count)| *name == "Work" && *count == 2));
+            assert!(list.iter().any(|(name, count)| *name == "Fun" && *count == 1));
+        }
     }
 }

@@ -2,7 +2,7 @@
 
 use chrono::{Duration, Utc};
 use clap::{Parser, Subcommand};
-use shade::analytics::{compute_daily_summary, default_categories};
+use shade::analytics::{compute_daily_summary, default_categories, merge_categories};
 use shade::config::ShadeConfig;
 use shade::db::Database;
 
@@ -63,6 +63,40 @@ enum Commands {
 
     /// Initialize with example config
     Init,
+
+    /// Manage app categories
+    Category {
+        #[command(subcommand)]
+        action: CategoryCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum CategoryCommands {
+    /// List all categories
+    List,
+
+    /// Add an app to a category
+    Add {
+        /// Bundle ID of the app
+        bundle_id: String,
+        /// Category name
+        category: String,
+    },
+
+    /// Remove an app from a category
+    Remove {
+        /// Bundle ID of the app
+        bundle_id: String,
+        /// Category name
+        category: String,
+    },
+
+    /// Show all apps in a category
+    Show {
+        /// Category name
+        category: String,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -109,7 +143,8 @@ fn main() -> anyhow::Result<()> {
 
             let db = Database::open(&config.db_path)?;
             let today = Utc::now().date_naive();
-            let categories = default_categories();
+            let user_categories = config.category_map();
+            let categories = merge_categories(&user_categories, true);
             let summary = compute_daily_summary(&db, today, Some(&categories))?;
 
             println!("Today's Screen Time: {}", summary.format_total_time());
@@ -260,6 +295,81 @@ fn main() -> anyhow::Result<()> {
             println!("  Database: {:?}", config.db_path);
             println!();
             println!("Run 'shade start' to begin tracking.");
+        }
+
+        Commands::Category { action } => {
+            let mut config = ShadeConfig::load()?;
+
+            match action {
+                CategoryCommands::List => {
+                    // Show user-defined categories
+                    let user_cats = config.list_categories();
+                    if user_cats.is_empty() {
+                        println!("No user-defined categories. Using defaults only.");
+                        println!();
+                        println!("Default categories:");
+                        let defaults = default_categories();
+                        let mut cat_counts: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+                        for cat in defaults.values() {
+                            *cat_counts.entry(cat.as_str()).or_insert(0) += 1;
+                        }
+                        let mut cats: Vec<_> = cat_counts.into_iter().collect();
+                        cats.sort_by_key(|(name, _)| *name);
+                        for (name, count) in cats {
+                            println!("  {:20} ({} apps)", name, count);
+                        }
+                    } else {
+                        println!("User-defined categories:");
+                        for (name, count) in &user_cats {
+                            println!("  {:20} ({} apps)", name, count);
+                        }
+                        println!();
+                        println!("Plus {} built-in default categories", {
+                            let defaults = default_categories();
+                            let mut unique: std::collections::HashSet<&str> = std::collections::HashSet::new();
+                            for v in defaults.values() {
+                                unique.insert(v.as_str());
+                            }
+                            unique.len()
+                        });
+                    }
+                }
+
+                CategoryCommands::Add { bundle_id, category } => {
+                    config.add_to_category(&bundle_id, &category);
+                    config.save()?;
+                    println!("Added '{}' to category '{}'", bundle_id, category);
+                }
+
+                CategoryCommands::Remove { bundle_id, category } => {
+                    if config.remove_from_category(&bundle_id, &category) {
+                        config.save()?;
+                        println!("Removed '{}' from category '{}'", bundle_id, category);
+                    } else {
+                        println!("App '{}' not found in category '{}'", bundle_id, category);
+                    }
+                }
+
+                CategoryCommands::Show { category } => {
+                    let user_categories = config.category_map();
+                    let all_categories = merge_categories(&user_categories, true);
+                    
+                    let apps_in_category: Vec<_> = all_categories
+                        .iter()
+                        .filter(|(_, cat)| cat.as_str() == category)
+                        .map(|(bundle_id, _)| bundle_id.as_str())
+                        .collect();
+                    
+                    if apps_in_category.is_empty() {
+                        println!("No apps in category '{}'", category);
+                    } else {
+                        println!("Apps in '{}' ({} total):", category, apps_in_category.len());
+                        for bundle_id in apps_in_category {
+                            println!("  {}", bundle_id);
+                        }
+                    }
+                }
+            }
         }
     }
 
