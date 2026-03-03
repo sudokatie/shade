@@ -10,6 +10,7 @@ Every "screen time" app wants your data. They track you to sell insights, optimi
 
 - **Screen Time Tracking** - Know exactly where your hours go
 - **App Categories** - Group apps by type (Development, Browsers, Communication, etc.)
+- **Time Goals** - Set daily limits per app or category with warnings at 80% and 100%
 - **Daily Summaries** - Quick view of today's usage with progress toward goals
 - **TUI Dashboard** - Beautiful terminal interface for exploring your data
 - **JSON Export** - Your data in an open format, whenever you want it
@@ -68,6 +69,10 @@ brew install sudokatie/tap/shade
 | `shade category add <bundle_id> <category>` | Add app to a category |
 | `shade category remove <bundle_id> <category>` | Remove app from category |
 | `shade category show <category>` | Show apps in a category |
+| `shade goals list` | List all time goals |
+| `shade goals add <target> <minutes>` | Add a time goal (use --category for categories) |
+| `shade goals remove <target>` | Remove a time goal |
+| `shade goals status` | Show progress toward all goals |
 
 ## Configuration
 
@@ -118,6 +123,54 @@ shade category show Development
 ```
 
 User-defined categories in config.yaml take precedence over built-in defaults, so you can recategorize any app to fit your workflow.
+
+## Time Goals
+
+Set daily limits to keep yourself accountable. Goals can target specific apps or entire categories.
+
+### Managing Goals
+
+```bash
+# List all goals
+shade goals list
+
+# Add a 2-hour limit for Social category
+shade goals add Social 120 --category
+
+# Add a 30-minute limit for a specific app
+shade goals add com.twitter.Twitter 30
+
+# Check progress toward all goals
+shade goals status
+
+# Remove a goal
+shade goals remove Social --category
+```
+
+### Goal Status Output
+
+```
+Goal Progress (Today):
+
+  Social                     45m / 120m ( 37.5%) [OK] (cat)
+    1h 15m left
+  com.twitter.Twitter        28m /  30m ( 93.3%) [WARNING] (app)
+    2m left
+  Entertainment             125m / 120m (104.2%) [OVER LIMIT] (cat)
+```
+
+Goals warn at 80% by default and show "OVER LIMIT" when exceeded. Configure goals in `~/.shade/config.yaml`:
+
+```yaml
+goals:
+  - target: Social
+    is_category: true
+    daily_limit_minutes: 120
+    warn_at_percent: 80
+  - target: com.twitter.Twitter
+    is_category: false
+    daily_limit_minutes: 30
+```
 
 ## Data Storage
 

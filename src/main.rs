@@ -2,9 +2,10 @@
 
 use chrono::{Duration, Utc};
 use clap::{Parser, Subcommand};
-use shade::analytics::{compute_daily_summary, default_categories, merge_categories};
-use shade::config::ShadeConfig;
+use shade::analytics::{compute_daily_summary, default_categories, merge_categories, check_goals, WarningLevel};
+use shade::config::{ShadeConfig, TimeGoal};
 use shade::db::Database;
+use std::collections::HashMap;
 
 #[derive(Parser)]
 #[command(name = "shade")]
@@ -69,6 +70,12 @@ enum Commands {
         #[command(subcommand)]
         action: CategoryCommands,
     },
+
+    /// Manage time goals
+    Goals {
+        #[command(subcommand)]
+        action: GoalCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -97,6 +104,35 @@ enum CategoryCommands {
         /// Category name
         category: String,
     },
+}
+
+#[derive(Subcommand)]
+enum GoalCommands {
+    /// List all time goals
+    List,
+
+    /// Add a time goal for an app or category
+    Add {
+        /// Target (bundle ID or category name)
+        target: String,
+        /// Daily limit in minutes
+        limit: u32,
+        /// Set goal for a category instead of app
+        #[arg(short, long)]
+        category: bool,
+    },
+
+    /// Remove a time goal
+    Remove {
+        /// Target (bundle ID or category name)
+        target: String,
+        /// Remove a category goal instead of app goal
+        #[arg(short, long)]
+        category: bool,
+    },
+
+    /// Show progress toward all goals
+    Status,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -366,6 +402,122 @@ fn main() -> anyhow::Result<()> {
                         println!("Apps in '{}' ({} total):", category, apps_in_category.len());
                         for bundle_id in apps_in_category {
                             println!("  {}", bundle_id);
+                        }
+                    }
+                }
+            }
+        }
+
+        Commands::Goals { action } => {
+            let mut config = ShadeConfig::load()?;
+
+            match action {
+                GoalCommands::List => {
+                    let goals = config.list_goals();
+                    if goals.is_empty() {
+                        println!("No time goals set.");
+                        println!();
+                        println!("Add a goal with:");
+                        println!("  shade goals add <app-bundle-id> <minutes>");
+                        println!("  shade goals add <category> <minutes> --category");
+                    } else {
+                        println!("Time Goals:");
+                        println!();
+                        for goal in goals {
+                            let kind = if goal.is_category { "category" } else { "app" };
+                            let hours = goal.daily_limit_minutes / 60;
+                            let mins = goal.daily_limit_minutes % 60;
+                            if hours > 0 {
+                                println!("  {:30} {}h {}m/day ({})", goal.target, hours, mins, kind);
+                            } else {
+                                println!("  {:30} {}m/day ({})", goal.target, mins, kind);
+                            }
+                        }
+                    }
+                }
+
+                GoalCommands::Add { target, limit, category } => {
+                    let goal = if category {
+                        TimeGoal::for_category(&target, limit)
+                    } else {
+                        TimeGoal::for_app(&target, limit)
+                    };
+
+                    if config.add_goal(goal) {
+                        config.save()?;
+                        let kind = if category { "category" } else { "app" };
+                        println!("Added {} goal: {} ({} min/day)", kind, target, limit);
+                    } else {
+                        println!("Goal already exists for '{}'", target);
+                    }
+                }
+
+                GoalCommands::Remove { target, category } => {
+                    if config.remove_goal(&target, category) {
+                        config.save()?;
+                        println!("Removed goal for '{}'", target);
+                    } else {
+                        println!("No goal found for '{}'", target);
+                    }
+                }
+
+                GoalCommands::Status => {
+                    let goals = config.list_goals();
+                    if goals.is_empty() {
+                        println!("No time goals set. Use 'shade goals add' to create one.");
+                        return Ok(());
+                    }
+
+                    if !config.db_path.exists() {
+                        println!("No usage data yet. Run 'shade start' to begin tracking.");
+                        return Ok(());
+                    }
+
+                    let db = Database::open(&config.db_path)?;
+                    let today = Utc::now().date_naive();
+                    let user_categories = config.category_map();
+                    let categories = merge_categories(&user_categories, true);
+                    let summary = compute_daily_summary(&db, today, Some(&categories))?;
+
+                    // Build usage maps (convert seconds to minutes)
+                    let mut app_usage: HashMap<String, u32> = HashMap::new();
+                    let mut category_usage: HashMap<String, u32> = HashMap::new();
+
+                    for app in &summary.top_apps {
+                        app_usage.insert(app.bundle_id.clone(), (app.seconds / 60) as u32);
+                    }
+
+                    for cat in &summary.category_breakdown {
+                        category_usage.insert(cat.category.clone(), (cat.seconds / 60) as u32);
+                    }
+
+                    let progress_list = check_goals(&app_usage, &category_usage, goals);
+
+                    println!("Goal Progress (Today):");
+                    println!();
+
+                    for progress in &progress_list {
+                        let status = match progress.warning_level() {
+                            WarningLevel::Exceeded => "OVER LIMIT",
+                            WarningLevel::Warning => "WARNING",
+                            WarningLevel::Normal => "OK",
+                        };
+                        
+                        let kind = if progress.goal.is_category { "cat" } else { "app" };
+                        let limit = progress.goal.daily_limit_minutes;
+                        
+                        println!(
+                            "  {:25} {:>3}m / {:>3}m ({:>5.1}%) [{}] ({})",
+                            progress.goal.target,
+                            progress.used_minutes,
+                            limit,
+                            progress.percent_used,
+                            status,
+                            kind
+                        );
+                        
+                        if progress.warning_level() != WarningLevel::Exceeded {
+                            println!("    {}", progress.remaining_display());
                         }
                     }
                 }

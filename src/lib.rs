@@ -36,6 +36,10 @@ pub mod config {
         /// App categories for classification
         #[serde(default)]
         pub categories: Vec<CategoryConfig>,
+
+        /// Time goals for apps or categories
+        #[serde(default)]
+        pub goals: Vec<TimeGoal>,
     }
 
     impl Default for ShadeConfig {
@@ -46,6 +50,7 @@ pub mod config {
                 collection_interval_secs: default_collection_interval(),
                 track_window_titles: false,
                 categories: Vec::new(),
+                goals: Vec::new(),
             }
         }
     }
@@ -81,6 +86,47 @@ pub mod config {
         pub name: String,
         /// Bundle IDs or app names that belong to this category
         pub patterns: Vec<String>,
+    }
+
+    /// Time goal for limiting screen time
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct TimeGoal {
+        /// Target - can be an app bundle ID or category name
+        pub target: String,
+        /// Whether target is a category (true) or app (false)
+        #[serde(default)]
+        pub is_category: bool,
+        /// Daily limit in minutes
+        pub daily_limit_minutes: u32,
+        /// Warn at this percentage (default 80)
+        #[serde(default = "default_warn_percent")]
+        pub warn_at_percent: u8,
+    }
+
+    fn default_warn_percent() -> u8 {
+        80
+    }
+
+    impl TimeGoal {
+        /// Create a new goal for an app
+        pub fn for_app(bundle_id: &str, daily_limit_minutes: u32) -> Self {
+            Self {
+                target: bundle_id.to_string(),
+                is_category: false,
+                daily_limit_minutes,
+                warn_at_percent: 80,
+            }
+        }
+
+        /// Create a new goal for a category
+        pub fn for_category(category: &str, daily_limit_minutes: u32) -> Self {
+            Self {
+                target: category.to_string(),
+                is_category: true,
+                daily_limit_minutes,
+                warn_at_percent: 80,
+            }
+        }
     }
 
     impl ShadeConfig {
@@ -127,6 +173,43 @@ pub mod config {
                 .iter()
                 .map(|c| (c.name.as_str(), c.patterns.len()))
                 .collect()
+        }
+
+        /// Add a time goal
+        pub fn add_goal(&mut self, goal: TimeGoal) -> bool {
+            // Check for duplicate target
+            if self.goals.iter().any(|g| g.target == goal.target && g.is_category == goal.is_category) {
+                return false;
+            }
+            self.goals.push(goal);
+            true
+        }
+
+        /// Remove a time goal by target
+        pub fn remove_goal(&mut self, target: &str, is_category: bool) -> bool {
+            let original_len = self.goals.len();
+            self.goals.retain(|g| !(g.target == target && g.is_category == is_category));
+            self.goals.len() < original_len
+        }
+
+        /// Get a goal by target
+        pub fn get_goal(&self, target: &str, is_category: bool) -> Option<&TimeGoal> {
+            self.goals.iter().find(|g| g.target == target && g.is_category == is_category)
+        }
+
+        /// List all goals
+        pub fn list_goals(&self) -> &[TimeGoal] {
+            &self.goals
+        }
+
+        /// Update goal limit
+        pub fn update_goal_limit(&mut self, target: &str, is_category: bool, new_limit: u32) -> bool {
+            if let Some(goal) = self.goals.iter_mut().find(|g| g.target == target && g.is_category == is_category) {
+                goal.daily_limit_minutes = new_limit;
+                true
+            } else {
+                false
+            }
         }
     }
 
@@ -234,6 +317,74 @@ pub mod config {
             assert_eq!(list.len(), 2);
             assert!(list.iter().any(|(name, count)| *name == "Work" && *count == 2));
             assert!(list.iter().any(|(name, count)| *name == "Fun" && *count == 1));
+        }
+
+        #[test]
+        fn test_add_goal_app() {
+            let mut config = ShadeConfig::default();
+            let goal = TimeGoal::for_app("com.example.app", 120);
+            assert!(config.add_goal(goal));
+            assert_eq!(config.goals.len(), 1);
+            assert_eq!(config.goals[0].target, "com.example.app");
+            assert!(!config.goals[0].is_category);
+        }
+
+        #[test]
+        fn test_add_goal_category() {
+            let mut config = ShadeConfig::default();
+            let goal = TimeGoal::for_category("Social", 60);
+            assert!(config.add_goal(goal));
+            assert_eq!(config.goals.len(), 1);
+            assert!(config.goals[0].is_category);
+        }
+
+        #[test]
+        fn test_add_goal_no_duplicate() {
+            let mut config = ShadeConfig::default();
+            config.add_goal(TimeGoal::for_app("com.example.app", 120));
+            // Same target, should fail
+            assert!(!config.add_goal(TimeGoal::for_app("com.example.app", 60)));
+            assert_eq!(config.goals.len(), 1);
+        }
+
+        #[test]
+        fn test_remove_goal() {
+            let mut config = ShadeConfig::default();
+            config.add_goal(TimeGoal::for_app("com.example.app", 120));
+            assert!(config.remove_goal("com.example.app", false));
+            assert!(config.goals.is_empty());
+        }
+
+        #[test]
+        fn test_remove_goal_not_found() {
+            let mut config = ShadeConfig::default();
+            config.add_goal(TimeGoal::for_app("com.example.app", 120));
+            assert!(!config.remove_goal("com.other.app", false));
+        }
+
+        #[test]
+        fn test_get_goal() {
+            let mut config = ShadeConfig::default();
+            config.add_goal(TimeGoal::for_app("com.example.app", 120));
+            
+            let goal = config.get_goal("com.example.app", false);
+            assert!(goal.is_some());
+            assert_eq!(goal.unwrap().daily_limit_minutes, 120);
+        }
+
+        #[test]
+        fn test_update_goal_limit() {
+            let mut config = ShadeConfig::default();
+            config.add_goal(TimeGoal::for_app("com.example.app", 120));
+            
+            assert!(config.update_goal_limit("com.example.app", false, 90));
+            assert_eq!(config.goals[0].daily_limit_minutes, 90);
+        }
+
+        #[test]
+        fn test_time_goal_warn_percent_default() {
+            let goal = TimeGoal::for_app("com.example.app", 120);
+            assert_eq!(goal.warn_at_percent, 80);
         }
     }
 }
