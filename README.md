@@ -13,7 +13,7 @@ Every "screen time" app wants your data. They track you to sell insights, optimi
 - **Time Goals** - Set daily limits per app or category with warnings at 80% and 100%
 - **Daily Summaries** - Quick view of today's usage with progress toward goals
 - **TUI Dashboard** - Beautiful terminal interface for exploring your data
-- **JSON Export** - Your data in an open format, whenever you want it
+- **JSON/CSV Export** - Your data in open formats, whenever you want it
 - **Idle Detection** - Pauses tracking when you step away
 
 ## Quick Start
@@ -31,8 +31,11 @@ shade today
 # Open the dashboard
 shade dashboard
 
-# Export your data
+# Export your data (JSON)
 shade export -o my-data.json --from 2026-01-01 --to 2026-01-30
+
+# Export to CSV
+shade export -o screen-time.csv --format csv --csv-type apps
 ```
 
 ## Installation
@@ -64,7 +67,7 @@ brew install sudokatie/tap/shade
 | `shade apps` | Top apps by usage time |
 | `shade list` | All tracked applications |
 | `shade dashboard` | Interactive TUI dashboard |
-| `shade export` | Export data to JSON |
+| `shade export` | Export data to JSON or CSV |
 | `shade category list` | List all categories |
 | `shade category add <bundle_id> <category>` | Add app to a category |
 | `shade category remove <bundle_id> <category>` | Remove app from category |
@@ -171,6 +174,43 @@ goals:
     is_category: false
     daily_limit_minutes: 30
 ```
+
+## Export
+
+Export your data for external analysis or backup. Shade supports JSON and CSV formats.
+
+### JSON Export
+
+```bash
+# Export last 30 days (default)
+shade export -o my-data.json
+
+# Export specific date range
+shade export -o january.json --from 2026-01-01 --to 2026-01-31
+```
+
+JSON export includes daily summaries, category breakdowns, and app-by-app details.
+
+### CSV Export
+
+```bash
+# Export per-app breakdown (default csv-type)
+shade export -o apps.csv --format csv
+
+# Export daily totals
+shade export -o daily.csv --format csv --csv-type daily
+
+# Export category breakdown
+shade export -o categories.csv --format csv --csv-type categories
+
+# Specific date range
+shade export -o week.csv --format csv --csv-type apps --from 2026-03-01 --to 2026-03-07
+```
+
+CSV types:
+- **apps** - Per-app time per day (date, app name, bundle ID, duration)
+- **daily** - Total screen time per day
+- **categories** - Time per category per day
 
 ## Data Storage
 

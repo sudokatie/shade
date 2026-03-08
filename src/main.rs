@@ -47,7 +47,7 @@ enum Commands {
     /// Open the TUI dashboard
     Dashboard,
 
-    /// Export data to JSON
+    /// Export data to JSON or CSV
     Export {
         /// Output file path
         #[arg(short, long)]
@@ -60,6 +60,14 @@ enum Commands {
         /// End date (YYYY-MM-DD)
         #[arg(long)]
         to: Option<String>,
+
+        /// Export format (json or csv)
+        #[arg(short, long, default_value = "json")]
+        format: String,
+
+        /// CSV export type: daily, apps, or categories (only for csv format)
+        #[arg(long, default_value = "apps")]
+        csv_type: String,
     },
 
     /// Initialize with example config
@@ -279,7 +287,7 @@ fn main() -> anyhow::Result<()> {
             shade::tui::run(config.db_path.to_str().unwrap_or(":memory:"))?;
         }
 
-        Commands::Export { output, from, to } => {
+        Commands::Export { output, from, to, format, csv_type } => {
             let config = ShadeConfig::load()?;
 
             if !config.db_path.exists() {
@@ -307,9 +315,22 @@ fn main() -> anyhow::Result<()> {
 
             println!("Exporting data from {} to {}...", start, end);
 
-            shade::export::export_to_file(&db, start, end, &output)?;
-
-            println!("Exported to {:?}", output);
+            match format.to_lowercase().as_str() {
+                "json" => {
+                    shade::export::export_to_file(&db, start, end, &output)?;
+                    println!("Exported JSON to {:?}", output);
+                }
+                "csv" => {
+                    let export_type: shade::export::CsvExportType = csv_type
+                        .parse()
+                        .map_err(|e: String| anyhow::anyhow!(e))?;
+                    shade::export::export_to_csv_file(&db, start, end, &output, export_type)?;
+                    println!("Exported CSV ({}) to {:?}", csv_type, output);
+                }
+                _ => {
+                    anyhow::bail!("Unknown format '{}'. Use 'json' or 'csv'.", format);
+                }
+            }
         }
 
         Commands::Init => {
