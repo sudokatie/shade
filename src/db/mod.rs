@@ -5,5 +5,5 @@
 mod queries;
 mod schema;
 
-pub use queries::Database;
+pub use queries::{Database, SessionWithApp};
 pub use schema::{Application, Session};

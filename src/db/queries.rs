@@ -217,6 +217,57 @@ impl Database {
         )?;
         Ok(())
     }
+
+    /// Get sessions for a date range (for focus analysis)
+    pub fn get_sessions_for_date(&self, date: NaiveDate) -> Result<Vec<SessionWithApp>> {
+        let start = format!("{}T00:00:00", date);
+        let end = format!("{}T23:59:59", date);
+
+        let mut stmt = self.conn.prepare(
+            r#"
+            SELECT 
+                s.id, s.application_id, s.started_at, s.ended_at, s.ended_idle,
+                a.bundle_id, a.name
+            FROM sessions s
+            JOIN applications a ON a.id = s.application_id
+            WHERE s.started_at >= ? AND s.started_at <= ?
+            ORDER BY s.started_at ASC
+            "#,
+        )?;
+
+        let rows = stmt.query_map(params![start, end], |row| {
+            let started_at: String = row.get(2)?;
+            let ended_at: Option<String> = row.get(3)?;
+            Ok(SessionWithApp {
+                id: row.get(0)?,
+                application_id: row.get(1)?,
+                started_at: started_at.parse().unwrap_or_else(|_| Utc::now()),
+                ended_at: ended_at.and_then(|s| s.parse().ok()),
+                ended_idle: row.get(4)?,
+                bundle_id: row.get(5)?,
+                app_name: row.get(6)?,
+            })
+        })?;
+
+        let mut results = Vec::new();
+        for row in rows {
+            results.push(row?);
+        }
+
+        Ok(results)
+    }
+}
+
+/// Session with application info (for focus analysis)
+#[derive(Debug, Clone)]
+pub struct SessionWithApp {
+    pub id: i64,
+    pub application_id: i64,
+    pub started_at: chrono::DateTime<Utc>,
+    pub ended_at: Option<chrono::DateTime<Utc>>,
+    pub ended_idle: bool,
+    pub bundle_id: String,
+    pub app_name: String,
 }
 
 #[cfg(test)]

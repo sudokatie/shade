@@ -4,6 +4,7 @@
 
 mod categories;
 mod daily;
+mod focus;
 pub mod goals;
 
 use chrono::NaiveDate;
@@ -13,6 +14,7 @@ pub use categories::{
     categorize_apps, default_categories, get_category_for_bundle_id, merge_categories,
 };
 pub use daily::{compute_daily_summary, compute_today_summary};
+pub use focus::{analyze_focus, analyze_focus_today, FlowSession, FocusAnalysis};
 pub use goals::{check_goals, get_exceeded, get_warnings, GoalProgress, WarningLevel, WeeklySummary};
 
 /// Daily summary of usage

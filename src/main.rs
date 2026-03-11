@@ -2,7 +2,7 @@
 
 use chrono::{Duration, Utc};
 use clap::{Parser, Subcommand};
-use shade::analytics::{compute_daily_summary, default_categories, merge_categories, check_goals, WarningLevel};
+use shade::analytics::{analyze_focus, compute_daily_summary, default_categories, merge_categories, check_goals, WarningLevel};
 use shade::config::{ShadeConfig, TimeGoal};
 use shade::db::Database;
 use std::collections::HashMap;
@@ -83,6 +83,13 @@ enum Commands {
     Goals {
         #[command(subcommand)]
         action: GoalCommands,
+    },
+
+    /// Analyze focus patterns (app switching, flow sessions)
+    Focus {
+        /// Date to analyze (YYYY-MM-DD, default: today)
+        #[arg(short, long)]
+        date: Option<String>,
     },
 }
 
@@ -542,6 +549,81 @@ fn main() -> anyhow::Result<()> {
                         }
                     }
                 }
+            }
+        }
+
+        Commands::Focus { date } => {
+            let config = ShadeConfig::load()?;
+
+            if !config.db_path.exists() {
+                println!("No data yet. Run 'shade start' to begin tracking.");
+                return Ok(());
+            }
+
+            let db = Database::open(&config.db_path)?;
+
+            // Parse date or use today
+            let target_date = match date {
+                Some(s) => s
+                    .parse::<chrono::NaiveDate>()
+                    .map_err(|_| anyhow::anyhow!("Invalid date format. Use YYYY-MM-DD"))?,
+                None => Utc::now().date_naive(),
+            };
+
+            let analysis = analyze_focus(&db, target_date)?;
+
+            println!("Focus Analysis for {}", analysis.date);
+            println!();
+
+            // Focus score
+            println!(
+                "Focus Score: {} ({})",
+                analysis.focus_score,
+                analysis.score_interpretation()
+            );
+            println!();
+
+            // App switching
+            println!("App Switching:");
+            println!("  Total switches: {}", analysis.switch_count);
+            println!("  Rate: {}", analysis.format_switches_per_hour());
+            println!();
+
+            // Flow sessions
+            println!("Flow Sessions (30+ min sustained focus):");
+            if analysis.flow_sessions.is_empty() {
+                println!("  None detected");
+            } else {
+                println!("  Total flow time: {}", analysis.format_flow_time());
+                println!();
+                for flow in &analysis.flow_sessions {
+                    let hours = flow.duration_secs / 3600;
+                    let minutes = (flow.duration_secs % 3600) / 60;
+                    if hours > 0 {
+                        println!("  {:25} {}h {}m", flow.app_name, hours, minutes);
+                    } else {
+                        println!("  {:25} {}m", flow.app_name, minutes);
+                    }
+                }
+            }
+            println!();
+
+            // Insights
+            println!("Insights:");
+            if analysis.switches_per_hour > 20.0 {
+                println!("  High app switching - consider closing unused apps");
+            } else if analysis.switches_per_hour < 5.0 && analysis.total_active_secs > 3600 {
+                println!("  Low switching rate - good focus discipline");
+            }
+
+            if analysis.flow_sessions.is_empty() && analysis.total_active_secs > 3600 {
+                println!("  No flow sessions - try blocking distractions for 30+ min");
+            } else if analysis.flow_sessions.len() >= 3 {
+                println!("  Multiple flow sessions - excellent deep work day");
+            }
+
+            if analysis.total_flow_secs > analysis.total_active_secs / 2 {
+                println!("  Over 50% of time in flow state - productive day");
             }
         }
     }
