@@ -4,7 +4,7 @@
 
 use crate::db::{Database, SessionWithApp};
 use anyhow::Result;
-use chrono::{Duration, NaiveDate, Utc};
+use chrono::{NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 
 /// Minimum session duration to count as meaningful (seconds)
