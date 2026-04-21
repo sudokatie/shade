@@ -259,10 +259,10 @@ Windows support uses the Win32 API to track the foreground window and detect idl
 
 ## Roadmap
 
-### v0.2 (Planned)
+### v0.2 (Mostly Complete)
 - [x] Linux support (X11 via x11rb)
 - [x] Windows support (Win32 GetForegroundWindow)
-- [ ] Wayland support (compositor-specific, experimental)
+- [ ] Wayland support (compositor-specific, deferred - no standard protocol)
 
 See FEATURE-BACKLOG.md in the clawd repo for detailed acceptance criteria.
 
